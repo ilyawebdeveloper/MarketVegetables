@@ -1,0 +1,15 @@
+:root {
+  color: rgb(0, 0, 0);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f3f5fa !important;
+}
