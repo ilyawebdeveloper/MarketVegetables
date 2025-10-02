@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-
+import { useEffect } from "react";
 import {
   Button,
   Container,
@@ -13,8 +12,17 @@ import {
 import EmptyCartIcon from "./icons/emptyCartIcon";
 import "./App.css";
 import "@mantine/core/styles.css";
+import { useDispatch, useSelector } from "react-redux";
+import type { RootState } from "./store";
+import {
+  addToCart,
+  decrement,
+  fetchVigatables,
+  increment,
+} from "./features/vigatebles/vigatebles";
+import type { UnknownAction } from "@reduxjs/toolkit";
 
-interface Vigatabl {
+export interface Vigatabl {
   image: string;
   category: string;
   id: number;
@@ -23,35 +31,25 @@ interface Vigatabl {
 }
 
 export function App() {
-  const [count, setCount] = useState({});
-  const [cart, setCart] = useState([]);
-  const [data, setData] = useState<Vigatabl[]>([]);
-  const [loading, setLoading] = useState(true);
-  const fetchVigatables = async () => {
-    try {
-      const response = await fetch(
-        "https://res.cloudinary.com/sivadass/raw/upload/v1535817394/json/products.json"
-      );
-      const dataResponse = await response.json();
+  const {
+    vigatablesList,
+    vigatablesListCount,
+    status,
+    cart: cartRedux,
+  } = useSelector((state: RootState) => state.vigatebles);
+  const dispatch = useDispatch();
+  useEffect(() => {
+    dispatch(fetchVigatables() as unknown as UnknownAction);
+  }, []);
 
-      setData(dataResponse);
-      setCount(
-        dataResponse?.reduce((acc, product) => {
-          acc[product.id] = 1;
-          return acc;
-        }, {})
-      );
-      setLoading(false);
-    } catch (error) {
-      return error;
+  const addTooCart = (item: Vigatabl) => {
+    const productCart = cartRedux.find((itemCart) => itemCart.id === item.id);
+    if (!productCart) {
+      dispatch(addToCart(item));
     }
   };
 
-  useEffect(() => {
-    fetchVigatables();
-  }, []);
-
-  if (loading) {
+  if (status !== "succeeded") {
     return (
       <Container size="xl" mt={100}>
         <Flex
@@ -81,7 +79,7 @@ export function App() {
         bg="white"
         p="md"
         mb="xl"
-        style={{ position: "fixed", width: "100%" }}
+        style={{ position: "fixed", width: "100%", top: "0" }}
       >
         <Flex align="center" justify="center">
           <Text fw={700}>Vegetable</Text>
@@ -93,7 +91,7 @@ export function App() {
           <Button color="#54B46A" radius="md">
             <Flex bg="white" bdrs="50%" align="center" justify="center" mr={10}>
               <Text fw={600} c="black" px={10}>
-                {cart.length}
+                {cartRedux.length}
               </Text>
             </Flex>
 
@@ -104,7 +102,7 @@ export function App() {
                 </Text>
               </PopoverTarget>
               <PopoverDropdown>
-                {cart.length === 0 && (
+                {cartRedux.length === 0 && (
                   <Flex
                     align="center"
                     justify="center"
@@ -117,7 +115,7 @@ export function App() {
                   </Flex>
                 )}
 
-                {cart.map((itemCard) => (
+                {cartRedux.map((itemCard) => (
                   <div key={itemCard.id}>
                     <Flex justify="space-between">
                       <Flex>
@@ -146,24 +144,18 @@ export function App() {
                           color="gray"
                           size="xs"
                           onClick={() => {
-                            setCart((prev) => [
-                              ...prev.filter((item) => item.id !== itemCard.id),
-                              { ...itemCard, count: itemCard.count - 1 },
-                            ]);
+                            dispatch(decrement(itemCard.id));
                           }}
                         >
                           <h1>-</h1>
                         </Button>
-                        <div>{itemCard.count}</div>
+                        <div>{vigatablesListCount[itemCard.id]}</div>
                         <Button
                           variant="filled"
                           color="gray"
                           size="xs"
                           onClick={() => {
-                            setCart((prev) => [
-                              ...prev.filter((item) => item.id !== itemCard.id),
-                              { ...itemCard, count: itemCard.count + 1 },
-                            ]);
+                            dispatch(increment(itemCard.id));
                           }}
                         >
                           <h1>+</h1>
@@ -180,15 +172,16 @@ export function App() {
                   </div>
                 ))}
 
-                {cart.length > 0 && (
+                {cartRedux.length > 0 && (
                   <Flex justify="space-between">
                     <Text size="lg" fw={600}>
                       Total
                     </Text>
                     <Text size="lg" fw={600}>
-                      {cart?.length &&
-                        cart?.reduce(
-                          (acc, val) => acc + val.price * val.count,
+                      {cartRedux?.length &&
+                        cartRedux?.reduce(
+                          (acc, val) =>
+                            acc + val.price * vigatablesListCount[val.id],
                           0
                         )}
                     </Text>
@@ -223,7 +216,7 @@ export function App() {
           direction="row"
           wrap="wrap"
         >
-          {data.map((item) => {
+          {vigatablesList.map((item) => {
             return (
               <div
                 key={item.id}
@@ -248,25 +241,20 @@ export function App() {
                       variant="filled"
                       color="gray"
                       size="xs"
+                      disabled={vigatablesListCount[item.id] <= 1}
                       onClick={() => {
-                        setCount((prev) => ({
-                          ...prev,
-                          [`${item.id}`]: count[item.id] - 1,
-                        }));
+                        dispatch(decrement(item.id));
                       }}
                     >
                       <h1>-</h1>
                     </Button>
-                    <div>{count[item.id]}</div>
+                    <div>{vigatablesListCount[item.id]}</div>
                     <Button
                       variant="filled"
                       color="gray"
                       size="xs"
                       onClick={() => {
-                        setCount((prev) => ({
-                          ...prev,
-                          [`${item.id}`]: count[item.id] + 1,
-                        }));
+                        dispatch(increment(item.id));
                       }}
                     >
                       <h1>+</h1>
@@ -281,8 +269,9 @@ export function App() {
                     color="#E7FAEB"
                     size="md"
                     radius="md"
+                    disabled={cartRedux.find((itemCart) => itemCart.id === item.id) !== undefined}
                     onClick={() => {
-                      setCart([...cart, { ...item, count: count[item.id] }]);
+                      addTooCart(item);
                     }}
                   >
                     <Text c="#3B944E">Add to Cart</Text>
